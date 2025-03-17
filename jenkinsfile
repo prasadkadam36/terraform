@@ -1,0 +1,47 @@
+pipeline {
+  agent any
+
+  parameters {
+    string(name: 'REGION', defaultValue: 'East US', description: 'Azure region')
+    string(name: 'RESOURCE_GROUP', defaultValue: 'jenkins-rg', description: 'Azure resource group')
+    string(name: 'AKS_NAME', defaultValue: 'myAKS', description: 'AKS cluster name')
+    string(name: 'VNET_ID', defaultValue: '', description: 'VNet ID')
+    string(name: 'SUBNET_ID', defaultValue: '', description: 'Subnet ID for AKS nodes')
+    string(name: 'NODE_COUNT', defaultValue: '2', description: 'Number of nodes')
+    string(name: 'NODE_VM_SIZE', defaultValue: 'Standard_DS2_v2', description: 'VM size')
+  }
+
+  environment {
+    ARM_USE_MSI = "true"     // Use Managed Identity Auth
+    ARM_SUBSCRIPTION_ID = "<your-subscription-id>" // Optional override if multiple subs
+  }
+
+  stages {
+    stage('Checkout') {
+      steps {
+        git url: 'https://github.com/your-org/terraform-aks.git', branch: 'main'
+      }
+    }
+
+    stage('Terraform Init') {
+      steps {
+        sh 'terraform init'
+      }
+    }
+
+    stage('Terraform Apply') {
+      steps {
+        sh """
+        terraform apply -auto-approve \
+          -var region="${params.REGION}" \
+          -var resource_group="${params.RESOURCE_GROUP}" \
+          -var aks_name="${params.AKS_NAME}" \
+          -var vnet_id="${params.VNET_ID}" \
+          -var subnet_id="${params.SUBNET_ID}" \
+          -var node_count=${params.NODE_COUNT} \
+          -var node_vm_size="${params.NODE_VM_SIZE}"
+        """
+      }
+    }
+  }
+}
